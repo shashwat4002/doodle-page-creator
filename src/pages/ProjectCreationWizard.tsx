@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { api } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Check, Rocket, BookOpen, Target, FileUp, Sparkles, Zap, Telescope } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Rocket, BookOpen, Target, FileUp, Sparkles, Zap, Telescope, Brain } from "lucide-react";
 
 const STEPS = [
   { id: "title", title: "Name Your Mission", description: "Every great discovery starts with a name", icon: Rocket },
@@ -27,6 +27,12 @@ const RESEARCH_FIELDS = [
   { id: "interdisciplinary", label: "Interdisciplinary", color: "from-indigo-500 to-purple-500" },
 ];
 
+interface AIAnalysis {
+  vision: string;
+  stages: Array<{ name: string; description: string; order_index: number }>;
+  tags: string[];
+}
+
 const ProjectCreationWizard = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -37,12 +43,18 @@ const ProjectCreationWizard = () => {
   });
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
+      // When moving to review step, trigger AI analysis
+      if (currentStep === 3) {
+        await analyzeProject();
+      }
       setCurrentStep(currentStep + 1);
     }
   };
@@ -50,6 +62,46 @@ const ProjectCreationWizard = () => {
   const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const analyzeProject = async () => {
+    setIsAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-project', {
+        body: {
+          title: formData.title,
+          field: formData.field,
+          objective: formData.objective,
+        },
+      });
+
+      if (error) throw error;
+      setAiAnalysis(data);
+      toast({ title: "AI Vision Generated", description: "Your research pipeline has been analyzed" });
+    } catch (error) {
+      console.error('Analysis error:', error);
+      // Set fallback analysis
+      setAiAnalysis({
+        vision: `This ${formData.field} research project will explore: ${formData.objective.substring(0, 150)}...`,
+        stages: [
+          { name: "Exploration", description: "Initial research landscape mapping", order_index: 0 },
+          { name: "Topic Discovery", description: "Refine research questions", order_index: 1 },
+          { name: "Literature Review", description: "Review existing work", order_index: 2 },
+          { name: "Methodology", description: "Design research approach", order_index: 3 },
+          { name: "Data Collection", description: "Gather research data", order_index: 4 },
+          { name: "Analysis", description: "Analyze findings", order_index: 5 },
+          { name: "Publication", description: "Document results", order_index: 6 },
+        ],
+        tags: [formData.field.toLowerCase().split(' ')[0], "research"],
+      });
+      toast({ 
+        title: "Using default pipeline", 
+        description: "AI analysis unavailable, using standard research stages",
+        variant: "default"
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -69,23 +121,102 @@ const ProjectCreationWizard = () => {
     setSelectedFile(file);
     setIsUploading(true);
     
-    // Simulate upload for now - will be replaced with actual Supabase storage
-    setTimeout(() => {
-      setFormData({ ...formData, proposalUrl: `uploaded:${file.name}` });
-      setIsUploading(false);
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('project_documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('project_documents')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, proposalUrl: publicUrlData.publicUrl });
       toast({ title: "Proposal uploaded successfully" });
-    }, 1500);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      await api.post("/projects", formData);
+      // Get current user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to create a project",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // Create project in Supabase
+      const { data: project, error: projectError } = await supabase
+        .from('research_projects')
+        .insert({
+          owner_id: user.id,
+          title: formData.title,
+          description: formData.objective,
+          objectives: formData.objective,
+          tags: aiAnalysis?.tags || [formData.field.toLowerCase()],
+          status: 'active',
+          progress_percentage: 0,
+        })
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // Create pipeline stages
+      if (aiAnalysis?.stages && project) {
+        type StageStatus = "not_started" | "in_progress" | "review" | "completed";
+        const stageInserts = aiAnalysis.stages.map((stage) => ({
+          project_id: project.id,
+          name: stage.name,
+          description: stage.description,
+          order_index: stage.order_index,
+          status: (stage.order_index === 0 ? 'in_progress' : 'not_started') as StageStatus,
+        }));
+
+        const { error: stagesError } = await supabase
+          .from('pipeline_stages')
+          .insert(stageInserts);
+
+        if (stagesError) {
+          console.error('Stages error:', stagesError);
+        }
+      }
+
+      // Log activity
+      await supabase.from('activity_feed').insert({
+        user_id: user.id,
+        activity_type: 'project_created',
+        title: 'Created new research project',
+        description: formData.title,
+        related_project_id: project.id,
+      });
+
       toast({
         title: "Mission Launched! 🚀",
         description: "Your research pipeline has been automatically generated.",
       });
-      navigate("/dashboard");
+      navigate("/projects");
     } catch (error) {
       console.error("Submission error:", error);
       toast({
@@ -269,49 +400,80 @@ const ProjectCreationWizard = () => {
                     </div>
                   )}
 
-                  {/* Step 5: Review */}
+                  {/* Step 5: Review with AI Vision */}
                   {currentStep === 4 && (
                     <div className="w-full space-y-6">
-                      <div className="grid gap-4">
-                        <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Rocket className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mission Name</span>
-                          </div>
-                          <p className="text-xl font-bold">{formData.title}</p>
+                      {isAnalyzing ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                            className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center mb-4"
+                          >
+                            <Brain className="w-8 h-8 text-primary-foreground" />
+                          </motion.div>
+                          <p className="text-lg font-medium">AI is analyzing your project...</p>
+                          <p className="text-sm text-muted-foreground">Generating customized research pipeline</p>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                            <div className="flex items-center gap-2 mb-2">
-                              <BookOpen className="w-4 h-4 text-secondary" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Domain</span>
+                      ) : (
+                        <>
+                          {/* AI Vision Card */}
+                          {aiAnalysis?.vision && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/30"
+                            >
+                              <div className="flex items-center gap-2 mb-3">
+                                <Brain className="w-5 h-5 text-primary" />
+                                <span className="text-sm font-semibold uppercase tracking-wider text-primary">AI Vision</span>
+                              </div>
+                              <p className="text-sm leading-relaxed">{aiAnalysis.vision}</p>
+                            </motion.div>
+                          )}
+
+                          <div className="grid gap-4">
+                            <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Rocket className="w-4 h-4 text-primary" />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mission Name</span>
+                              </div>
+                              <p className="text-xl font-bold">{formData.title}</p>
                             </div>
-                            <p className="font-semibold">{formData.field}</p>
-                          </div>
-                          <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                            <div className="flex items-center gap-2 mb-2">
-                              <FileUp className="w-4 h-4 text-accent" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Proposal</span>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <BookOpen className="w-4 h-4 text-secondary" />
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Domain</span>
+                                </div>
+                                <p className="font-semibold">{formData.field}</p>
+                              </div>
+                              <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FileUp className="w-4 h-4 text-accent" />
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Proposal</span>
+                                </div>
+                                <p className="font-semibold">{formData.proposalUrl ? "Attached ✓" : "Not attached"}</p>
+                              </div>
                             </div>
-                            <p className="font-semibold">{formData.proposalUrl ? "Attached ✓" : "Not attached"}</p>
+                            
+                            <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Target className="w-4 h-4 text-primary" />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Objective</span>
+                              </div>
+                              <p className="text-sm leading-relaxed">{formData.objective}</p>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Target className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Objective</span>
+                          
+                          <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center">
+                            <p className="text-sm text-primary font-medium">
+                              🚀 {aiAnalysis?.stages?.length || 7} customized pipeline stages ready to deploy
+                            </p>
                           </div>
-                          <p className="text-sm leading-relaxed">{formData.objective}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center">
-                        <p className="text-sm text-primary font-medium">
-                          🚀 Your research pipeline will be auto-generated with 7 stages
-                        </p>
-                      </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -320,7 +482,7 @@ const ProjectCreationWizard = () => {
                   <Button
                     variant="ghost"
                     onClick={handleBack}
-                    disabled={currentStep === 0}
+                    disabled={currentStep === 0 || isAnalyzing}
                     className="gap-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -330,7 +492,7 @@ const ProjectCreationWizard = () => {
                   {currentStep === STEPS.length - 1 ? (
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isAnalyzing}
                       className="gap-2 px-8 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
                       size="lg"
                     >
@@ -349,12 +511,21 @@ const ProjectCreationWizard = () => {
                   ) : (
                     <Button
                       onClick={handleNext}
-                      disabled={!canProceed() || isUploading}
+                      disabled={!canProceed() || isUploading || isAnalyzing}
                       className="gap-2 px-8"
                       size="lg"
                     >
-                      {currentStep === 3 ? (formData.proposalUrl ? "Continue" : "Skip") : "Continue"}
-                      <ArrowRight className="w-4 h-4" />
+                      {isAnalyzing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : currentStep === 3 ? (
+                        formData.proposalUrl ? "Continue" : "Skip"
+                      ) : (
+                        "Continue"
+                      )}
+                      {!isAnalyzing && <ArrowRight className="w-4 h-4" />}
                     </Button>
                   )}
                 </CardFooter>
