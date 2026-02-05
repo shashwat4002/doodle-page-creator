@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { getSocket, connectSocket, disconnectSocket } from "@/lib/socket";
+import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "./use-auth";
 
 export type Notification = {
@@ -9,8 +9,8 @@ export type Notification = {
   type: string;
   message: string;
   payload?: Record<string, unknown>;
-  createdAt: string;
-  readAt?: string | null;
+  created_at: string;
+  read_at?: string | null;
 };
 
 export const useRealtimeNotifications = () => {
@@ -19,7 +19,9 @@ export const useRealtimeNotifications = () => {
   const { data } = useCurrentUser();
 
   const handleNotification = useCallback(
-    (notification: Notification) => {
+    (payload: { new: Notification }) => {
+      const notification = payload.new;
+      
       queryClient.setQueryData(
         ["notifications"],
         (existing: { notifications: Notification[] } | undefined | null) => {
@@ -41,18 +43,24 @@ export const useRealtimeNotifications = () => {
   );
 
   useEffect(() => {
-    // Only connect socket if user is authenticated
     if (!data?.user) return;
 
-    connectSocket();
-    const socket = getSocket();
-
-    socket.on("notification", handleNotification);
+    const channel = supabase
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${data.user.id}`,
+        },
+        handleNotification
+      )
+      .subscribe();
 
     return () => {
-      socket.off("notification", handleNotification);
-      disconnectSocket();
+      supabase.removeChannel(channel);
     };
   }, [data?.user, handleNotification]);
 };
-
