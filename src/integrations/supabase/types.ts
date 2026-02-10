@@ -109,6 +109,39 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          resource_id: string | null
+          resource_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       forum_categories: {
         Row: {
           color: string | null
@@ -1030,6 +1063,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           community_notifications: boolean | null
@@ -1097,9 +1151,63 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_notification_safe: {
+        Args: {
+          _link?: string
+          _message?: string
+          _related_project_id?: string
+          _related_thread_id?: string
+          _related_user_id?: string
+          _title: string
+          _type: Database["public"]["Enums"]["notification_type"]
+          _user_id: string
+        }
+        Returns: string
+      }
+      get_public_profile: {
+        Args: { _profile_id: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          created_at: string
+          email: string
+          expertise_areas: string[]
+          full_name: string
+          id: string
+          institution: string
+          is_available_for_mentoring: boolean
+          is_verified: boolean
+          linkedin_url: string
+          research_interests: string[]
+          twitter_url: string
+          website_url: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      list_public_profiles: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          bio: string
+          created_at: string
+          expertise_areas: string[]
+          full_name: string
+          id: string
+          institution: string
+          is_available_for_mentoring: boolean
+          is_verified: boolean
+          research_interests: string[]
+        }[]
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       match_status: "pending" | "accepted" | "rejected" | "cancelled"
       notification_type:
         | "mentor_response"
@@ -1250,6 +1358,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       match_status: ["pending", "accepted", "rejected", "cancelled"],
       notification_type: [
         "mentor_response",
