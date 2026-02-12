@@ -1,12 +1,21 @@
-import { useEffect, useRef, useCallback, memo } from 'react';
+import { useEffect, useRef, useCallback, memo, useState } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { BrandRevealOverlay } from '@/components/BrandRevealOverlay';
 
+// Section color themes (HSL)
 const SECTION_THEMES = [
   { core: [191, 100, 62], glow: [191, 100, 70], trail: [191, 80, 75] },
   { core: [280, 80, 65], glow: [270, 90, 60], trail: [290, 60, 75] },
   { core: [150, 90, 55], glow: [160, 85, 50], trail: [140, 70, 70] },
   { core: [340, 90, 60], glow: [350, 85, 55], trail: [330, 70, 70] },
   { core: [35, 95, 58], glow: [40, 90, 55], trail: [30, 80, 70] },
+];
+
+// Depth layer configs: far = small/slow/dim, near = large/fast/bright
+const DEPTH_LAYERS = [
+  { sizeRange: [0.8, 1.4], speedMult: 0.4, glowMult: 0.5, trailAlpha: 0.25, blur: 0 },    // Far
+  { sizeRange: [1.5, 2.5], speedMult: 0.7, glowMult: 0.8, trailAlpha: 0.45, blur: 0 },    // Mid
+  { sizeRange: [2.5, 4.0], speedMult: 1.0, glowMult: 1.2, trailAlpha: 0.65, blur: 1.5 },  // Near
 ];
 
 interface Comet {
@@ -16,11 +25,26 @@ interface Comet {
   trail: { x: number; y: number; alpha: number }[];
   glowRadius: number; targetGlowRadius: number;
   sectionIndex: number; collisionCooldown: number;
-  canPop: boolean; // only some comets pop at boundaries
+  canPop: boolean;
+  depthLayer: number; // 0=far, 1=mid, 2=near
+  sinOffset: number; // for sinusoidal drift
+  sinSpeed: number;
+  sinAmp: number;
+  scale: number; targetScale: number; // for forward motion illusion
+  age: number;
+}
+
+interface ShootingStar {
+  x: number; y: number; vx: number; vy: number;
+  trail: { x: number; y: number; alpha: number }[];
+  life: number; maxLife: number;
+  curveForce: number;
+  active: boolean;
 }
 
 interface Ripple { x: number; y: number; radius: number; maxRadius: number; alpha: number; color: number[]; }
 interface Spark { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: number[]; size: number; }
+interface Flash { x: number; y: number; alpha: number; radius: number; }
 
 function hslStr(h: number, s: number, l: number, a = 1) {
   return `hsla(${h}, ${s}%, ${l}%, ${a})`;
@@ -39,28 +63,48 @@ const CometFieldComponent = () => {
   const cometsRef = useRef<Comet[]>([]);
   const ripplesRef = useRef<Ripple[]>([]);
   const sparksRef = useRef<Spark[]>([]);
+  const flashesRef = useRef<Flash[]>([]);
+  const shootingStarRef = useRef<ShootingStar | null>(null);
   const smoothScrollRef = useRef(0);
   const targetScrollRef = useRef(0);
   const mouseRef = useRef({ x: -1000, y: -1000 });
   const sectionBoundsRef = useRef<number[]>([]);
   const animFrameRef = useRef(0);
   const lastCollisionRef = useRef(0);
+  const lastShootingStarRef = useRef(0);
+  const lastBrandRevealRef = useRef(0);
+  const [showBrandReveal, setShowBrandReveal] = useState(false);
+  const dimFactorRef = useRef(1); // 1 = full brightness, 0 = dimmed for brand reveal
 
-  const COMET_COUNT = isMobile ? 8 : 20;
-  const TRAIL_LENGTH = isMobile ? 18 : 35;
+  const COMET_COUNT = isMobile ? 10 : 24;
+  const TRAIL_LENGTH = isMobile ? 20 : 40;
+  const SHOOTING_STAR_INTERVAL = isMobile ? 20000 : 12000; // ms between shooting stars
+  const BRAND_REVEAL_INTERVAL = 45000; // ms between brand reveals
 
   const createComet = useCallback((w: number, h: number): Comet => {
     const theme = SECTION_THEMES[0];
+    const depthLayer = Math.random() < 0.3 ? 0 : Math.random() < 0.6 ? 1 : 2;
+    const layer = DEPTH_LAYERS[depthLayer];
+    const size = layer.sizeRange[0] + Math.random() * (layer.sizeRange[1] - layer.sizeRange[0]);
+    const baseGlow = (12 + Math.random() * 12) * layer.glowMult;
+
     return {
       x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.5,
-      size: Math.random() * 2.5 + 1.5,
+      vx: (Math.random() - 0.5) * 0.8 * layer.speedMult,
+      vy: (Math.random() - 0.5) * 0.6 * layer.speedMult,
+      size,
       coreColor: [...theme.core], glowColor: [...theme.glow], trailColor: [...theme.trail],
       targetCore: [...theme.core], targetGlow: [...theme.glow], targetTrail: [...theme.trail],
       trail: [],
-      glowRadius: 18 + Math.random() * 14, targetGlowRadius: 18 + Math.random() * 14,
+      glowRadius: baseGlow, targetGlowRadius: baseGlow,
       sectionIndex: 0, collisionCooldown: 0,
-      canPop: Math.random() < 0.35, // only ~35% of comets pop
+      canPop: Math.random() < 0.35,
+      depthLayer,
+      sinOffset: Math.random() * Math.PI * 2,
+      sinSpeed: 0.3 + Math.random() * 0.5,
+      sinAmp: 0.15 + Math.random() * 0.3,
+      scale: 1, targetScale: 1,
+      age: 0,
     };
   }, []);
 
@@ -87,6 +131,28 @@ const CometFieldComponent = () => {
         life: 1, maxLife: 0.6 + Math.random() * 0.4, color, size: 1 + Math.random() * 1.2,
       });
     }
+  }, []);
+
+  const spawnFlash = useCallback((x: number, y: number, radius = 120) => {
+    flashesRef.current.push({ x, y, alpha: 0.35, radius });
+  }, []);
+
+  const launchShootingStar = useCallback((w: number, h: number) => {
+    // Diagonal from random edge
+    const fromLeft = Math.random() > 0.5;
+    const startX = fromLeft ? -50 : w + 50;
+    const startY = Math.random() * h * 0.4;
+    const angle = fromLeft ? (-Math.PI / 6 + Math.random() * 0.3) : (-Math.PI + Math.PI / 6 - Math.random() * 0.3);
+    const speed = 6 + Math.random() * 4;
+
+    shootingStarRef.current = {
+      x: startX, y: startY,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      trail: [],
+      life: 1, maxLife: 1,
+      curveForce: (Math.random() - 0.5) * 0.08,
+      active: true,
+    };
   }, []);
 
   useEffect(() => {
@@ -135,22 +201,121 @@ const CometFieldComponent = () => {
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
 
-      // Smooth scroll interpolation to prevent glitching
       smoothScrollRef.current = lerp(smoothScrollRef.current, targetScrollRef.current, 0.12);
 
       const now = Date.now();
       const comets = cometsRef.current;
       const ripples = ripplesRef.current;
       const sparks = sparksRef.current;
+      const flashes = flashesRef.current;
       const mouse = mouseRef.current;
+      const dimFactor = dimFactorRef.current;
 
-      for (let i = 0; i < comets.length; i++) {
+      // === SHOOTING STAR LOGIC ===
+      if (!shootingStarRef.current && now - lastShootingStarRef.current > SHOOTING_STAR_INTERVAL + Math.random() * 8000) {
+        launchShootingStar(w, h);
+        lastShootingStarRef.current = now;
+      }
+
+      const ss = shootingStarRef.current;
+      if (ss && ss.active) {
+        // Curved arc motion
+        ss.vy += ss.curveForce;
+        ss.x += ss.vx;
+        ss.y += ss.vy;
+        ss.life -= 0.008;
+
+        ss.trail.unshift({ x: ss.x, y: ss.y, alpha: 1 });
+        if (ss.trail.length > 60) ss.trail.pop();
+        for (const t of ss.trail) t.alpha *= 0.96;
+
+        // Draw shooting star trail: white → golden → fade
+        if (ss.trail.length > 1) {
+          for (let t = 0; t < ss.trail.length - 1; t++) {
+            const p = ss.trail[t];
+            const pn = ss.trail[t + 1];
+            const progress = t / ss.trail.length;
+            const trailWidth = lerp(3.5, 0.3, progress);
+            const trailAlpha = p.alpha * lerp(0.9, 0, progress);
+            // White → golden yellow fade
+            const trailH = lerp(50, 45, progress);
+            const trailS = lerp(10, 90, progress);
+            const trailL = lerp(95, 65, progress);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(pn.x, pn.y);
+            ctx.strokeStyle = hslStr(trailH, trailS, trailL, trailAlpha * dimFactor);
+            ctx.lineWidth = trailWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+          }
+        }
+
+        // Draw shooting star core with golden halo
+        const coreGlow = ctx.createRadialGradient(ss.x, ss.y, 0, ss.x, ss.y, 30);
+        coreGlow.addColorStop(0, hslStr(45, 100, 95, 0.9 * dimFactor));
+        coreGlow.addColorStop(0.3, hslStr(42, 90, 70, 0.4 * dimFactor));
+        coreGlow.addColorStop(1, hslStr(40, 80, 60, 0));
+        ctx.fillStyle = coreGlow;
+        ctx.beginPath();
+        ctx.arc(ss.x, ss.y, 30, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White hot core
+        ctx.beginPath();
+        ctx.arc(ss.x, ss.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = hslStr(0, 0, 100, 0.95 * dimFactor);
+        ctx.shadowColor = hslStr(45, 100, 80, 0.8);
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Area brightening glow
+        spawnFlash(ss.x, ss.y, 80);
+
+        // Check if off screen
+        if (ss.x < -100 || ss.x > w + 100 || ss.y < -100 || ss.y > h + 100 || ss.life <= 0) {
+          ss.active = false;
+          shootingStarRef.current = null;
+
+          // Trigger brand reveal occasionally
+          if (now - lastBrandRevealRef.current > BRAND_REVEAL_INTERVAL) {
+            lastBrandRevealRef.current = now;
+            setShowBrandReveal(true);
+            // Dim comets during brand reveal
+            dimFactorRef.current = 0.15;
+            setTimeout(() => {
+              setShowBrandReveal(false);
+              // Gradually restore
+              const restore = () => {
+                dimFactorRef.current = lerp(dimFactorRef.current, 1, 0.05);
+                if (dimFactorRef.current < 0.95) requestAnimationFrame(restore);
+                else dimFactorRef.current = 1;
+              };
+              requestAnimationFrame(restore);
+            }, 3500);
+          }
+        }
+      }
+
+      // === COMETS ===
+      // Sort by depth layer for proper rendering order (far first)
+      const sortedIndices = comets.map((_, i) => i).sort((a, b) => comets[a].depthLayer - comets[b].depthLayer);
+
+      for (const i of sortedIndices) {
         const c = comets[i];
+        const layer = DEPTH_LAYERS[c.depthLayer];
+        c.age++;
 
-        // Gentle cursor repulsion
+        // Sinusoidal drift for organic motion
+        const sinWave = Math.sin(c.age * 0.01 * c.sinSpeed + c.sinOffset) * c.sinAmp;
+        const perpAngle = Math.atan2(c.vy, c.vx) + Math.PI / 2;
+
+        // Cursor repulsion (stronger for near comets)
+        const repulsionRange = 80 + c.depthLayer * 30;
         const dMouse = dist(c.x, c.y, mouse.x, mouse.y);
-        if (dMouse < 100) {
-          const force = (100 - dMouse) / 100 * 0.15;
+        if (dMouse < repulsionRange) {
+          const force = (repulsionRange - dMouse) / repulsionRange * (0.08 + c.depthLayer * 0.06);
           const angle = Math.atan2(c.y - mouse.y, c.x - mouse.x);
           c.vx += Math.cos(angle) * force;
           c.vy += Math.sin(angle) * force;
@@ -160,25 +325,33 @@ const CometFieldComponent = () => {
         c.vy *= 0.997;
 
         const speed = Math.sqrt(c.vx ** 2 + c.vy ** 2);
-        if (speed < 0.1) {
-          c.vx += (Math.random() - 0.5) * 0.06;
-          c.vy += (Math.random() - 0.5) * 0.06;
+        const maxSpeed = 1.5 * layer.speedMult + 0.5;
+        if (speed < 0.08) {
+          c.vx += (Math.random() - 0.5) * 0.05;
+          c.vy += (Math.random() - 0.5) * 0.05;
         }
-        // Cap max speed to prevent jitter
-        if (speed > 2.2) {
-          c.vx *= 2.2 / speed;
-          c.vy *= 2.2 / speed;
+        if (speed > maxSpeed) {
+          c.vx *= maxSpeed / speed;
+          c.vy *= maxSpeed / speed;
         }
 
-        c.x += c.vx;
-        c.y += c.vy;
+        c.x += c.vx + Math.cos(perpAngle) * sinWave * 0.3;
+        c.y += c.vy + Math.sin(perpAngle) * sinWave * 0.3;
 
-        if (c.x < -20) c.x = w + 20;
-        if (c.x > w + 20) c.x = -20;
-        if (c.y < -20) c.y = h + 20;
-        if (c.y > h + 20) c.y = -20;
+        // Forward motion simulation: occasionally a comet "approaches"
+        if (c.depthLayer === 1 && Math.random() < 0.0003) {
+          c.targetScale = 1.3;
+          setTimeout(() => { c.targetScale = 1; }, 2000);
+        }
+        c.scale = lerp(c.scale, c.targetScale, 0.02);
 
-        // Section color transition — smooth, only some pop
+        // Wrap edges
+        if (c.x < -30) c.x = w + 30;
+        if (c.x > w + 30) c.x = -30;
+        if (c.y < -30) c.y = h + 30;
+        if (c.y > h + 30) c.y = -30;
+
+        // Section color transition
         const sIdx = getSectionAtY(c.y);
         if (sIdx !== c.sectionIndex) {
           const theme = SECTION_THEMES[sIdx] || SECTION_THEMES[0];
@@ -187,16 +360,16 @@ const CometFieldComponent = () => {
           c.targetTrail = [...theme.trail];
 
           if (c.canPop) {
-            c.glowRadius = c.targetGlowRadius + 20;
-            spawnRipple(c.x, c.y, theme.core, 60);
-            spawnSparks(c.x, c.y, theme.core, 8);
+            c.glowRadius = c.targetGlowRadius + 18 * layer.glowMult;
+            spawnRipple(c.x, c.y, theme.core, 55);
+            spawnSparks(c.x, c.y, theme.core, 6);
+            spawnFlash(c.x, c.y, 60);
           }
-          // No speed boost — keeps motion stable
           c.sectionIndex = sIdx;
         }
 
-        // Slow, smooth color lerp for seamless transitions
-        const colorSpeed = 0.025;
+        // Smooth color lerp (~800ms at 60fps)
+        const colorSpeed = 0.03;
         c.coreColor = lerpColor(c.coreColor, c.targetCore, colorSpeed);
         c.glowColor = lerpColor(c.glowColor, c.targetGlow, colorSpeed);
         c.trailColor = lerpColor(c.trailColor, c.targetTrail, colorSpeed);
@@ -206,33 +379,37 @@ const CometFieldComponent = () => {
 
         c.trail.unshift({ x: c.x, y: c.y, alpha: 1 });
         if (c.trail.length > TRAIL_LENGTH) c.trail.pop();
-        for (const t of c.trail) t.alpha *= 0.93;
+        for (const t of c.trail) t.alpha *= 0.94;
 
-        // Gentle collisions
-        if (c.collisionCooldown <= 0 && now - lastCollisionRef.current > 2000) {
+        // Proximity flash on collision
+        if (c.collisionCooldown <= 0 && now - lastCollisionRef.current > 1800) {
           for (let j = i + 1; j < comets.length; j++) {
             const other = comets[j];
             if (other.collisionCooldown > 0) continue;
             const d = dist(c.x, c.y, other.x, other.y);
-            if (d < 25) {
+            if (d < 28) {
               lastCollisionRef.current = now;
               const mx = (c.x + other.x) / 2;
               const my = (c.y + other.y) / 2;
-              spawnSparks(mx, my, c.coreColor, 5);
+              spawnSparks(mx, my, c.coreColor, 6);
+              spawnFlash(mx, my, 50); // Golden sync flash
 
               const angle = Math.atan2(c.y - other.y, c.x - other.x);
-              const push = 0.4;
+              const push = 0.35;
               c.vx += Math.cos(angle) * push;
               c.vy += Math.sin(angle) * push;
               other.vx -= Math.cos(angle) * push;
               other.vy -= Math.sin(angle) * push;
-
               c.collisionCooldown = 120;
               other.collisionCooldown = 120;
               break;
             }
           }
         }
+
+        const drawSize = c.size * c.scale;
+        const drawGlow = c.glowRadius * c.scale;
+        const cAlpha = dimFactor;
 
         // Draw trail
         if (c.trail.length > 1) {
@@ -245,35 +422,56 @@ const CometFieldComponent = () => {
             c.trail[0].x, c.trail[0].y,
             c.trail[c.trail.length - 1].x, c.trail[c.trail.length - 1].y
           );
-          grad.addColorStop(0, hslStr(c.trailColor[0], c.trailColor[1], c.trailColor[2], 0.5));
+          grad.addColorStop(0, hslStr(c.trailColor[0], c.trailColor[1], c.trailColor[2], layer.trailAlpha * cAlpha));
           grad.addColorStop(1, hslStr(c.trailColor[0], c.trailColor[1], c.trailColor[2], 0));
           ctx.strokeStyle = grad;
-          ctx.lineWidth = c.size * 0.9;
+          ctx.lineWidth = drawSize * 0.8;
           ctx.lineCap = 'round';
           ctx.stroke();
         }
 
         // Draw glow
-        const glowGrad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.glowRadius);
-        glowGrad.addColorStop(0, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.35));
-        glowGrad.addColorStop(0.4, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.1));
+        const glowGrad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, drawGlow);
+        glowGrad.addColorStop(0, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.35 * cAlpha));
+        glowGrad.addColorStop(0.4, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.1 * cAlpha));
         glowGrad.addColorStop(1, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0));
         ctx.fillStyle = glowGrad;
         ctx.beginPath();
-        ctx.arc(c.x, c.y, c.glowRadius, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, drawGlow, 0, Math.PI * 2);
         ctx.fill();
+
+        // Near-layer blur effect
+        if (layer.blur > 0) {
+          ctx.filter = `blur(${layer.blur}px)`;
+        }
 
         // Draw core
         ctx.beginPath();
-        ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
-        ctx.fillStyle = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.95);
-        ctx.shadowColor = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.8);
-        ctx.shadowBlur = 10;
+        ctx.arc(c.x, c.y, drawSize, 0, Math.PI * 2);
+        ctx.fillStyle = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.95 * cAlpha);
+        ctx.shadowColor = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.8 * cAlpha);
+        ctx.shadowBlur = 8 + c.depthLayer * 3;
         ctx.fill();
         ctx.shadowBlur = 0;
+        ctx.filter = 'none';
       }
 
-      // Ripples
+      // === GOLDEN FLASHES ===
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const f = flashes[i];
+        f.alpha -= 0.02;
+        if (f.alpha <= 0) { flashes.splice(i, 1); continue; }
+        const fg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+        fg.addColorStop(0, hslStr(45, 90, 75, f.alpha * 0.5 * dimFactor));
+        fg.addColorStop(0.5, hslStr(40, 80, 60, f.alpha * 0.15 * dimFactor));
+        fg.addColorStop(1, hslStr(35, 70, 50, 0));
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // === RIPPLES ===
       for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i];
         r.radius += 1.5;
@@ -281,12 +479,12 @@ const CometFieldComponent = () => {
         if (r.alpha <= 0 || r.radius >= r.maxRadius) { ripples.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = hslStr(r.color[0], r.color[1], r.color[2], r.alpha * 0.4);
+        ctx.strokeStyle = hslStr(r.color[0], r.color[1], r.color[2], r.alpha * 0.4 * dimFactor);
         ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // Sparks
+      // === SPARKS ===
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
         s.x += s.vx; s.y += s.vy;
@@ -295,7 +493,7 @@ const CometFieldComponent = () => {
         if (s.life <= 0) { sparks.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.size * s.life, 0, Math.PI * 2);
-        ctx.fillStyle = hslStr(s.color[0], s.color[1], s.color[2], s.life * 0.6);
+        ctx.fillStyle = hslStr(s.color[0], s.color[1], s.color[2], s.life * 0.6 * dimFactor);
         ctx.fill();
       }
 
@@ -310,14 +508,17 @@ const CometFieldComponent = () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('mousemove', onMouseMove);
     };
-  }, [COMET_COUNT, TRAIL_LENGTH, createComet, getSectionAtY, spawnRipple, spawnSparks]);
+  }, [COMET_COUNT, TRAIL_LENGTH, SHOOTING_STAR_INTERVAL, BRAND_REVEAL_INTERVAL, createComet, getSectionAtY, spawnRipple, spawnSparks, spawnFlash, launchShootingStar]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[1]"
-      style={{ mixBlendMode: 'screen' }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none z-[1]"
+        style={{ mixBlendMode: 'screen' }}
+      />
+      {showBrandReveal && <BrandRevealOverlay onComplete={() => setShowBrandReveal(false)} />}
+    </>
   );
 };
 
