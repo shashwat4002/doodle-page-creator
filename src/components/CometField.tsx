@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback, memo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Section color themes (HSL)
+// Section color themes (HSL) - high contrast between sections
 const SECTION_THEMES = [
-  { core: [191, 100, 62], glow: [191, 100, 62], trail: [210, 40, 98] },   // Hero: Cyan
-  { core: [260, 60, 55], glow: [245, 80, 60], trail: [260, 40, 80] },     // Features: Violet/Indigo
-  { core: [310, 60, 55], glow: [180, 70, 50], trail: [290, 50, 70] },     // Stats: Magenta/Teal
-  { core: [260, 60, 55], glow: [280, 50, 60], trail: [270, 40, 70] },     // Testimonials: Purple
-  { core: [40, 90, 55], glow: [210, 80, 55], trail: [30, 60, 70] },       // CTA: Gold/Warm
+  { core: [191, 100, 62], glow: [191, 100, 70], trail: [191, 80, 75] },    // Hero: Bright Cyan
+  { core: [280, 80, 65], glow: [270, 90, 60], trail: [290, 60, 75] },      // Features: Vivid Purple
+  { core: [150, 90, 55], glow: [160, 85, 50], trail: [140, 70, 70] },      // Stats: Emerald Green
+  { core: [340, 90, 60], glow: [350, 85, 55], trail: [330, 70, 70] },      // Testimonials: Hot Pink
+  { core: [35, 95, 58], glow: [40, 90, 55], trail: [30, 80, 70] },         // CTA: Fiery Orange
 ];
 
 interface Comet {
@@ -235,26 +235,35 @@ const CometFieldComponent = () => {
         if (c.y < -20) c.y = h + 20;
         if (c.y > h + 20) c.y = -20;
 
-        // Section detection & color transition
+        // Section detection & color transition with POP effect
         const sIdx = getSectionAtY(c.y);
         if (sIdx !== c.sectionIndex) {
           const theme = SECTION_THEMES[sIdx] || SECTION_THEMES[0];
           c.targetCore = [...theme.core];
           c.targetGlow = [...theme.glow];
           c.targetTrail = [...theme.trail];
-          c.targetGlowRadius = 15 + Math.random() * 10 + (sIdx === 4 ? 5 : 0);
 
-          // Boundary ripple
-          spawnRipple(c.x, c.y, c.coreColor, 50);
+          // POP: temporarily inflate glow, then settle
+          c.glowRadius = 45 + Math.random() * 15;
+          c.targetGlowRadius = 15 + Math.random() * 10;
+
+          // Big burst ripple + sparks at transition
+          spawnRipple(c.x, c.y, theme.core, 80);
+          spawnSparks(c.x, c.y, theme.core, 12);
+
+          // Brief speed boost for dramatic feel
+          c.vx *= 1.5;
+          c.vy *= 1.5;
+
           c.sectionIndex = sIdx;
         }
 
-        // Smooth color lerp
-        const colorSpeed = 0.015;
+        // Faster color lerp for snappy transitions
+        const colorSpeed = 0.06;
         c.coreColor = lerpColor(c.coreColor, c.targetCore, colorSpeed);
         c.glowColor = lerpColor(c.glowColor, c.targetGlow, colorSpeed);
         c.trailColor = lerpColor(c.trailColor, c.targetTrail, colorSpeed);
-        c.glowRadius = lerp(c.glowRadius, c.targetGlowRadius, 0.02);
+        c.glowRadius = lerp(c.glowRadius, c.targetGlowRadius, 0.04);
 
         // Collision cooldown
         if (c.collisionCooldown > 0) c.collisionCooldown--;
