@@ -7,9 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuthActions, useCurrentUser } from "@/hooks/use-auth";
 import { useToast } from "@/components/ui/use-toast";
 import { AuthLayout } from "@/components/AuthLayout";
-import { ResearchCharacters } from "@/components/ResearchCharacters";
 import { lovable } from "@/integrations/lovable/index";
-import { ArrowLeft } from "lucide-react";
 
 const AuthRegister = () => {
   const navigate = useNavigate();
@@ -57,35 +55,12 @@ const AuthRegister = () => {
     }
   };
 
-  const leftPanel = (
-    <div className="flex flex-col items-center justify-center gap-8 max-w-md">
-      <ResearchCharacters />
-      <div className="text-center space-y-3">
-        <p className="text-muted-foreground text-sm italic">
-          "a quiet digital observatory for those who explore, discover, and push boundaries."
-        </p>
-        <p className="text-muted-foreground/60 text-xs">SochX Research Community</p>
-      </div>
-    </div>
-  );
-
   return (
-    <AuthLayout leftPanel={leftPanel}>
-      <div className="flex justify-end mb-4">
-        <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-          <ArrowLeft className="h-3 w-3" /> Back to Home
-        </button>
-      </div>
-
+    <AuthLayout>
       <div className="space-y-5">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Join SochX</h1>
           <p className="text-sm text-muted-foreground">Tell us about your research journey.</p>
-        </div>
-
-        <div className="flex rounded-lg border border-border/40 overflow-hidden">
-          <Link to="/auth/login" className="flex-1 py-2 text-center text-sm text-muted-foreground hover:text-foreground transition-colors">Sign In</Link>
-          <div className="flex-1 py-2 text-center text-sm font-medium bg-primary/10 text-primary border-b-2 border-primary">Create Account</div>
         </div>
 
         <Button

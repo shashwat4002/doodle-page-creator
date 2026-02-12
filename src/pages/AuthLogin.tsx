@@ -7,9 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthActions, useCurrentUser } from "@/hooks/use-auth";
 import { useToast } from "@/components/ui/use-toast";
 import { AuthLayout } from "@/components/AuthLayout";
-import { ResearchCharacters } from "@/components/ResearchCharacters";
 import { lovable } from "@/integrations/lovable/index";
-import { ArrowLeft } from "lucide-react";
 
 const AuthLogin = () => {
   const navigate = useNavigate();
@@ -52,71 +50,48 @@ const AuthLogin = () => {
     }
   };
 
-  const leftPanel = (
-    <div className="flex flex-col items-center justify-center gap-8 max-w-md">
-      <ResearchCharacters />
-      <div className="text-center space-y-3">
-        <p className="text-muted-foreground text-sm italic">
-          "a quiet digital observatory for those who explore, discover, and push boundaries."
-        </p>
-        <p className="text-muted-foreground/60 text-xs">SochX Research Community</p>
-      </div>
-    </div>
-  );
-
   return (
-    <AuthLayout leftPanel={leftPanel}>
-      {/* Back to home */}
-      <div className="flex justify-end mb-6">
-        <button onClick={() => navigate("/")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-          <ArrowLeft className="h-3 w-3" /> Back to Home
-        </button>
-      </div>
-
+    <AuthLayout>
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in</h1>
           <p className="text-sm text-muted-foreground">Enter your credentials to access your dashboard.</p>
-        </div>
-
-        {/* Sign In / Create Account tabs */}
-        <div className="flex rounded-lg border border-border/40 overflow-hidden">
-          <div className="flex-1 py-2 text-center text-sm font-medium bg-primary/10 text-primary border-b-2 border-primary">Sign In</div>
-          <Link to="/auth/register" className="flex-1 py-2 text-center text-sm text-muted-foreground hover:text-foreground transition-colors">Create Account</Link>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="email" type="email" autoComplete="email" placeholder="user@example.com"
+              id="email" type="email" autoComplete="email" placeholder="example.email@gmail.com"
               value={email} onChange={(e) => setEmail(e.target.value)} required
               className="bg-muted/30 border-border/40 h-11"
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <button type="button" className="text-xs text-primary hover:underline" onClick={() => navigate("/auth/forgot-password")}>Forgot password?</button>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <Input
-              id="password" type="password" autoComplete="current-password" placeholder="••••••••"
+              id="password" type="password" autoComplete="current-password" placeholder="Enter at least 8+ characters"
               value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8}
               className="bg-muted/30 border-border/40 h-11"
             />
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} />
-            Remember me
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} />
+              Remember me
+            </label>
+            <button type="button" className="text-xs text-primary hover:underline" onClick={() => navigate("/auth/forgot-password")}>
+              Forgot password?
+            </button>
+          </div>
           <Button type="submit" className="w-full h-11 text-sm font-medium" disabled={login.isPending}>
-            {login.isPending ? "Signing in..." : "Sign In"}
+            {login.isPending ? "Signing in..." : "Sign in"}
           </Button>
         </form>
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-border/30" />
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">or continue with</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Or sign in with</span>
           <div className="flex-1 h-px bg-border/30" />
         </div>
 
@@ -135,9 +110,8 @@ const AuthLogin = () => {
         </Button>
 
         <p className="text-[11px] text-center text-muted-foreground/60">
-          By clicking continue, you agree to our{" "}
-          <span className="underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="underline cursor-pointer">Privacy Policy</span>.
+          Don't have an account?{" "}
+          <Link to="/auth/register" className="text-primary font-medium hover:underline">Create account</Link>
         </p>
       </div>
     </AuthLayout>
