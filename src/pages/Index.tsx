@@ -18,13 +18,10 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden">
-      {/* Advanced Comet Interaction System */}
       <CometField onRevealStateChange={handleRevealStateChange} />
       
-      {/* Ambient background layers */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-gradient-space" />
       
-      {/* Fixed Navbar */}
       <div
         className="transition-opacity duration-700 ease-in-out"
         style={{ opacity: revealActive ? 0 : 1 }}
@@ -32,14 +29,11 @@ const Index = () => {
         <Navbar />
       </div>
       
-      {/* Main Content — fades out during brand reveal */}
       <main
         className="relative z-10 transition-opacity duration-700 ease-in-out"
         style={{ opacity: revealActive ? 0 : 1 }}
       >
-        <div data-comet-section="hero">
-          <HeroSection />
-        </div>
+        <HeroSection />
 
         <div data-comet-section="features">
           <FeaturesSection />
@@ -58,7 +52,6 @@ const Index = () => {
         </div>
       </main>
       
-      {/* Footer */}
       <div
         className="transition-opacity duration-700 ease-in-out"
         style={{ opacity: revealActive ? 0 : 1 }}
@@ -66,7 +59,6 @@ const Index = () => {
         <Footer />
       </div>
       
-      {/* Floating Toast Notifications */}
       <ToastNotification />
     </div>
   );
