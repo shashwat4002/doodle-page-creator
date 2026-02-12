@@ -6,6 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import ResearchPage from "./pages/ResearchPage";
+import CommunityHub from "./pages/CommunityHub";
+import OpportunitiesPage from "./pages/OpportunitiesPage";
+import AboutPage from "./pages/AboutPage";
 import Onboarding from "./pages/Onboarding";
 import AuthLogin from "./pages/AuthLogin";
 import AuthRegister from "./pages/AuthRegister";
@@ -35,6 +39,10 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/research" element={<ResearchPage />} />
+          <Route path="/community-hub" element={<CommunityHub />} />
+          <Route path="/opportunities" element={<OpportunitiesPage />} />
+          <Route path="/about" element={<AboutPage />} />
 
           {/* Auth */}
           <Route path="/auth/login" element={<AuthLogin />} />

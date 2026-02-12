@@ -14,187 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
-      audit_logs: {
+      connections: {
         Row: {
-          action_type: string
+          connection_type: string
           created_at: string
-          id: string
-          metadata: Json | null
-          resource_id: string | null
-          resource_type: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action_type: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          resource_id?: string | null
-          resource_type?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action_type?: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          resource_id?: string | null
-          resource_type?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      collaboration_requests: {
-        Row: {
-          created_at: string
-          from_user_id: string
           id: string
           message: string | null
-          project_id: string | null
-          responded_at: string | null
-          status: string
-          to_user_id: string
-          type: string
+          receiver_id: string
+          requester_id: string
+          status: Database["public"]["Enums"]["connection_status"]
+          updated_at: string
         }
         Insert: {
+          connection_type: string
           created_at?: string
-          from_user_id: string
           id?: string
           message?: string | null
-          project_id?: string | null
-          responded_at?: string | null
-          status?: string
-          to_user_id: string
-          type?: string
+          receiver_id: string
+          requester_id: string
+          status?: Database["public"]["Enums"]["connection_status"]
+          updated_at?: string
         }
         Update: {
+          connection_type?: string
           created_at?: string
-          from_user_id?: string
           id?: string
           message?: string | null
-          project_id?: string | null
-          responded_at?: string | null
-          status?: string
-          to_user_id?: string
-          type?: string
+          receiver_id?: string
+          requester_id?: string
+          status?: Database["public"]["Enums"]["connection_status"]
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "collaboration_requests_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      discussion_posts: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string
-          id: string
-          parent_id: string | null
-          thread_id: string
-        }
-        Insert: {
-          author_id: string
-          content: string
-          created_at?: string
-          id?: string
-          parent_id?: string | null
-          thread_id: string
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          parent_id?: string | null
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "discussion_posts_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "discussion_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "discussion_posts_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "discussion_threads"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       discussion_threads: {
         Row: {
           category: string
+          content: string
           created_at: string
-          created_by_id: string
           id: string
+          tags: string[] | null
           title: string
           updated_at: string
+          upvotes: number
+          user_id: string
         }
         Insert: {
-          category?: string
+          category: string
+          content: string
           created_at?: string
-          created_by_id: string
           id?: string
+          tags?: string[] | null
           title: string
           updated_at?: string
+          upvotes?: number
+          user_id: string
         }
         Update: {
           category?: string
+          content?: string
           created_at?: string
-          created_by_id?: string
           id?: string
+          tags?: string[] | null
           title?: string
           updated_at?: string
+          upvotes?: number
+          user_id?: string
         }
         Relationships: []
       }
       mentor_feedback: {
         Row: {
-          content: string
           created_at: string
+          feedback: string
           id: string
           mentor_id: string
           project_id: string
-          stage_id: string | null
+          stage: Database["public"]["Enums"]["pipeline_stage"] | null
         }
         Insert: {
-          content: string
           created_at?: string
+          feedback: string
           id?: string
           mentor_id: string
           project_id: string
-          stage_id?: string | null
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
         }
         Update: {
-          content?: string
           created_at?: string
+          feedback?: string
           id?: string
           mentor_id?: string
           project_id?: string
-          stage_id?: string | null
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
         }
         Relationships: [
           {
             foreignKeyName: "mentor_feedback_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mentor_feedback_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "research_stage_progress"
+            referencedRelation: "research_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -203,313 +122,254 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_read: boolean
+          link: string | null
           message: string
-          payload: Json | null
-          read_at: string | null
-          type: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_read?: boolean
+          link?: string | null
           message: string
-          payload?: Json | null
-          read_at?: string | null
-          type?: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_read?: boolean
+          link?: string | null
           message?: string
-          payload?: Json | null
-          read_at?: string | null
-          type?: string
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string
         }
         Relationships: []
       }
-      post_upvotes: {
+      pipeline_progress: {
         Row: {
+          completed_at: string | null
+          completion_percentage: number
           created_at: string
+          deadline: string | null
           id: string
-          post_id: string
-          user_id: string
+          notes: string | null
+          project_id: string
+          stage: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at: string
         }
         Insert: {
+          completed_at?: string | null
+          completion_percentage?: number
           created_at?: string
+          deadline?: string | null
           id?: string
-          post_id: string
-          user_id: string
+          notes?: string | null
+          project_id: string
+          stage: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at?: string
         }
         Update: {
+          completed_at?: string | null
+          completion_percentage?: number
           created_at?: string
+          deadline?: string | null
           id?: string
-          post_id?: string
-          user_id?: string
+          notes?: string | null
+          project_id?: string
+          stage?: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "post_upvotes_post_id_fkey"
-            columns: ["post_id"]
+            foreignKeyName: "pipeline_progress_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "discussion_posts"
+            referencedRelation: "research_projects"
             referencedColumns: ["id"]
           },
         ]
       }
       profiles: {
         Row: {
-          academic_level: string | null
+          academic_level: Database["public"]["Enums"]["academic_level"] | null
+          avatar_url: string | null
           bio: string | null
           created_at: string
-          current_journey_stage: string | null
-          email: string | null
           full_name: string
           id: string
-          intended_field_of_study: string | null
-          profile_photo_url: string | null
+          intended_field: string | null
           research_interests: string[] | null
-          skill_tags: string[] | null
+          skills: string[] | null
           updated_at: string
-        }
-        Insert: {
-          academic_level?: string | null
-          bio?: string | null
-          created_at?: string
-          current_journey_stage?: string | null
-          email?: string | null
-          full_name?: string
-          id: string
-          intended_field_of_study?: string | null
-          profile_photo_url?: string | null
-          research_interests?: string[] | null
-          skill_tags?: string[] | null
-          updated_at?: string
-        }
-        Update: {
-          academic_level?: string | null
-          bio?: string | null
-          created_at?: string
-          current_journey_stage?: string | null
-          email?: string | null
-          full_name?: string
-          id?: string
-          intended_field_of_study?: string | null
-          profile_photo_url?: string | null
-          research_interests?: string[] | null
-          skill_tags?: string[] | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      project_documents: {
-        Row: {
-          created_at: string
-          file_type: string | null
-          id: string
-          name: string
-          project_id: string
-          stage_id: string | null
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          file_type?: string | null
-          id?: string
-          name: string
-          project_id: string
-          stage_id?: string | null
-          url: string
-        }
-        Update: {
-          created_at?: string
-          file_type?: string | null
-          id?: string
-          name?: string
-          project_id?: string
-          stage_id?: string | null
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_documents_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_documents_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "research_stage_progress"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_updates: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string
-          id: string
-          project_id: string
-        }
-        Insert: {
-          author_id: string
-          content: string
-          created_at?: string
-          id?: string
-          project_id: string
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_updates_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      projects: {
-        Row: {
-          created_at: string
-          current_stage: string | null
-          description: string | null
-          field: string | null
-          id: string
-          objective: string | null
-          owner_id: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          current_stage?: string | null
-          description?: string | null
-          field?: string | null
-          id?: string
-          objective?: string | null
-          owner_id: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          current_stage?: string | null
-          description?: string | null
-          field?: string | null
-          id?: string
-          objective?: string | null
-          owner_id?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      research_stage_progress: {
-        Row: {
-          completion: number
-          created_at: string
-          id: string
-          milestone_due_date: string | null
-          milestone_title: string | null
-          notes: string | null
-          project_id: string
-          stage: string
-          updated_at: string
-        }
-        Insert: {
-          completion?: number
-          created_at?: string
-          id?: string
-          milestone_due_date?: string | null
-          milestone_title?: string | null
-          notes?: string | null
-          project_id: string
-          stage: string
-          updated_at?: string
-        }
-        Update: {
-          completion?: number
-          created_at?: string
-          id?: string
-          milestone_due_date?: string | null
-          milestone_title?: string | null
-          notes?: string | null
-          project_id?: string
-          stage?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "research_stage_progress_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resource_bookmarks: {
-        Row: {
-          created_at: string
-          id: string
-          resource_id: string
           user_id: string
         }
         Insert: {
+          academic_level?: Database["public"]["Enums"]["academic_level"] | null
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          full_name: string
           id?: string
-          resource_id: string
+          intended_field?: string | null
+          research_interests?: string[] | null
+          skills?: string[] | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          academic_level?: Database["public"]["Enums"]["academic_level"] | null
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          full_name?: string
           id?: string
-          resource_id?: string
+          intended_field?: string | null
+          research_interests?: string[] | null
+          skills?: string[] | null
+          updated_at?: string
           user_id?: string
         }
+        Relationships: []
+      }
+      project_files: {
+        Row: {
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          project_id: string
+          stage: Database["public"]["Enums"]["pipeline_stage"] | null
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          project_id: string
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          project_id?: string
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          uploaded_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "resource_bookmarks_resource_id_fkey"
-            columns: ["resource_id"]
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "resources"
+            referencedRelation: "research_projects"
             referencedColumns: ["id"]
           },
         ]
+      }
+      project_milestones: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean
+          project_id: string
+          stage: Database["public"]["Enums"]["pipeline_stage"] | null
+          title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          project_id: string
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          title: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean
+          project_id?: string
+          stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_projects: {
+        Row: {
+          created_at: string
+          current_stage: Database["public"]["Enums"]["pipeline_stage"]
+          description: string | null
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_stage?: Database["public"]["Enums"]["pipeline_stage"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_stage?: Database["public"]["Enums"]["pipeline_stage"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       resource_views: {
         Row: {
-          created_at: string
           id: string
           resource_id: string
           user_id: string
+          viewed_at: string
         }
         Insert: {
-          created_at?: string
           id?: string
           resource_id: string
           user_id: string
+          viewed_at?: string
         }
         Update: {
-          created_at?: string
           id?: string
           resource_id?: string
           user_id?: string
+          viewed_at?: string
         }
         Relationships: [
           {
@@ -523,54 +383,212 @@ export type Database = {
       }
       resources: {
         Row: {
+          category: string
           created_at: string
+          created_by: string | null
           description: string | null
           difficulty: string | null
+          external_url: string | null
+          file_url: string | null
           id: string
-          subject: string | null
+          tags: string[] | null
           title: string
-          updated_at: string
-          url: string
         }
         Insert: {
+          category: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           difficulty?: string | null
+          external_url?: string | null
+          file_url?: string | null
           id?: string
-          subject?: string | null
+          tags?: string[] | null
           title: string
-          updated_at?: string
-          url: string
         }
         Update: {
+          category?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           difficulty?: string | null
+          external_url?: string | null
+          file_url?: string | null
           id?: string
-          subject?: string | null
+          tags?: string[] | null
           title?: string
-          updated_at?: string
-          url?: string
         }
         Relationships: []
       }
-      user_roles: {
+      thread_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          parent_comment_id: string | null
+          thread_id: string
+          upvotes: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          thread_id: string
+          upvotes?: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          thread_id?: string
+          upvotes?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "thread_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_comments_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_upvotes: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          id: string
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_upvotes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "thread_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_upvotes_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_bookmarks: {
         Row: {
           created_at: string
+          id: string
+          resource_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resource_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resource_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_bookmarks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          community_notifications: boolean
+          created_at: string
+          email_notifications: boolean
+          id: string
+          match_notifications: boolean
+          privacy_profile_visible: boolean
+          privacy_show_email: boolean
+          push_notifications: boolean
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_notifications?: boolean
+          created_at?: string
+          email_notifications?: boolean
+          id?: string
+          match_notifications?: boolean
+          privacy_profile_visible?: boolean
+          privacy_show_email?: boolean
+          push_notifications?: boolean
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_notifications?: boolean
+          created_at?: string
+          email_notifications?: boolean
+          id?: string
+          match_notifications?: boolean
+          privacy_profile_visible?: boolean
+          privacy_show_email?: boolean
+          push_notifications?: boolean
+          theme?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -580,24 +598,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_public_profile: {
-        Args: { _profile_id: string }
-        Returns: {
-          academic_level: string
-          bio: string
-          current_journey_stage: string
-          full_name: string
-          id: string
-          intended_field_of_study: string
-          profile_photo_url: string
-          research_interests: string[]
-          skill_tags: string[]
-        }[]
-      }
-      get_user_role: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -605,22 +605,33 @@ export type Database = {
         }
         Returns: boolean
       }
-      list_public_profiles: {
-        Args: never
-        Returns: {
-          academic_level: string
-          current_journey_stage: string
-          full_name: string
-          id: string
-          intended_field_of_study: string
-          profile_photo_url: string
-          research_interests: string[]
-          skill_tags: string[]
-        }[]
-      }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      academic_level:
+        | "high_school"
+        | "undergraduate"
+        | "graduate"
+        | "phd"
+        | "postdoc"
+        | "faculty"
+        | "industry"
+      app_role: "student_researcher" | "mentor" | "admin"
+      connection_status: "pending" | "accepted" | "rejected"
+      notification_type:
+        | "mentor_feedback"
+        | "match_request"
+        | "milestone"
+        | "community_reply"
+        | "resource_recommendation"
+        | "system"
+      pipeline_stage:
+        | "exploration"
+        | "topic_discovery"
+        | "literature_review"
+        | "methodology"
+        | "execution"
+        | "documentation"
+        | "publication"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -748,7 +759,34 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      academic_level: [
+        "high_school",
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "faculty",
+        "industry",
+      ],
+      app_role: ["student_researcher", "mentor", "admin"],
+      connection_status: ["pending", "accepted", "rejected"],
+      notification_type: [
+        "mentor_feedback",
+        "match_request",
+        "milestone",
+        "community_reply",
+        "resource_recommendation",
+        "system",
+      ],
+      pipeline_stage: [
+        "exploration",
+        "topic_discovery",
+        "literature_review",
+        "methodology",
+        "execution",
+        "documentation",
+        "publication",
+      ],
     },
   },
 } as const
