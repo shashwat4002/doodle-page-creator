@@ -46,19 +46,19 @@ const CometFieldComponent = () => {
   const animFrameRef = useRef(0);
   const lastCollisionRef = useRef(0);
 
-  const COMET_COUNT = isMobile ? 6 : 14;
-  const TRAIL_LENGTH = isMobile ? 10 : 20;
+  const COMET_COUNT = isMobile ? 8 : 20;
+  const TRAIL_LENGTH = isMobile ? 18 : 35;
 
   const createComet = useCallback((w: number, h: number): Comet => {
     const theme = SECTION_THEMES[0];
     return {
       x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.3,
-      size: Math.random() * 2 + 1.2,
+      vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.5,
+      size: Math.random() * 2.5 + 1.5,
       coreColor: [...theme.core], glowColor: [...theme.glow], trailColor: [...theme.trail],
       targetCore: [...theme.core], targetGlow: [...theme.glow], targetTrail: [...theme.trail],
       trail: [],
-      glowRadius: 12 + Math.random() * 8, targetGlowRadius: 12 + Math.random() * 8,
+      glowRadius: 18 + Math.random() * 14, targetGlowRadius: 18 + Math.random() * 14,
       sectionIndex: 0, collisionCooldown: 0,
       canPop: Math.random() < 0.35, // only ~35% of comets pop
     };
@@ -74,17 +74,17 @@ const CometFieldComponent = () => {
     return 0;
   }, []);
 
-  const spawnRipple = useCallback((x: number, y: number, color: number[], maxR = 50) => {
-    ripplesRef.current.push({ x, y, radius: 2, maxRadius: maxR, alpha: 0.4, color });
+  const spawnRipple = useCallback((x: number, y: number, color: number[], maxR = 70) => {
+    ripplesRef.current.push({ x, y, radius: 2, maxRadius: maxR, alpha: 0.55, color });
   }, []);
 
-  const spawnSparks = useCallback((x: number, y: number, color: number[], count = 6) => {
+  const spawnSparks = useCallback((x: number, y: number, color: number[], count = 8) => {
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-      const speed = 1 + Math.random() * 1.5;
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+      const speed = 1.5 + Math.random() * 2;
       sparksRef.current.push({
         x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-        life: 1, maxLife: 0.5 + Math.random() * 0.3, color, size: 0.8 + Math.random(),
+        life: 1, maxLife: 0.6 + Math.random() * 0.4, color, size: 1 + Math.random() * 1.2,
       });
     }
   }, []);
@@ -165,9 +165,9 @@ const CometFieldComponent = () => {
           c.vy += (Math.random() - 0.5) * 0.06;
         }
         // Cap max speed to prevent jitter
-        if (speed > 1.5) {
-          c.vx *= 1.5 / speed;
-          c.vy *= 1.5 / speed;
+        if (speed > 2.2) {
+          c.vx *= 2.2 / speed;
+          c.vy *= 2.2 / speed;
         }
 
         c.x += c.vx;
@@ -187,10 +187,9 @@ const CometFieldComponent = () => {
           c.targetTrail = [...theme.trail];
 
           if (c.canPop) {
-            // Subtle pop — small glow increase, small ripple
-            c.glowRadius = c.targetGlowRadius + 12;
-            spawnRipple(c.x, c.y, theme.core, 40);
-            spawnSparks(c.x, c.y, theme.core, 4);
+            c.glowRadius = c.targetGlowRadius + 20;
+            spawnRipple(c.x, c.y, theme.core, 60);
+            spawnSparks(c.x, c.y, theme.core, 8);
           }
           // No speed boost — keeps motion stable
           c.sectionIndex = sIdx;
@@ -249,15 +248,15 @@ const CometFieldComponent = () => {
           grad.addColorStop(0, hslStr(c.trailColor[0], c.trailColor[1], c.trailColor[2], 0.5));
           grad.addColorStop(1, hslStr(c.trailColor[0], c.trailColor[1], c.trailColor[2], 0));
           ctx.strokeStyle = grad;
-          ctx.lineWidth = c.size * 0.7;
+          ctx.lineWidth = c.size * 0.9;
           ctx.lineCap = 'round';
           ctx.stroke();
         }
 
         // Draw glow
         const glowGrad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.glowRadius);
-        glowGrad.addColorStop(0, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.25));
-        glowGrad.addColorStop(0.5, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.06));
+        glowGrad.addColorStop(0, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.35));
+        glowGrad.addColorStop(0.4, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0.1));
         glowGrad.addColorStop(1, hslStr(c.glowColor[0], c.glowColor[1], c.glowColor[2], 0));
         ctx.fillStyle = glowGrad;
         ctx.beginPath();
@@ -267,9 +266,9 @@ const CometFieldComponent = () => {
         // Draw core
         ctx.beginPath();
         ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
-        ctx.fillStyle = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.9);
-        ctx.shadowColor = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.6);
-        ctx.shadowBlur = 6;
+        ctx.fillStyle = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.95);
+        ctx.shadowColor = hslStr(c.coreColor[0], c.coreColor[1], c.coreColor[2], 0.8);
+        ctx.shadowBlur = 10;
         ctx.fill();
         ctx.shadowBlur = 0;
       }
