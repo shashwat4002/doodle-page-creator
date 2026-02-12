@@ -47,12 +47,12 @@ export const useCurrentUser = () => {
 
     const fetchProfileAndRole = async () => {
       const [profileRes, roleRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", session.user.id).single(),
-        supabase.from("user_roles").select("role").eq("user_id", session.user.id).single(),
+        supabase.from("profiles" as any).select("*").eq("id", session.user.id).maybeSingle(),
+        supabase.from("user_roles" as any).select("role").eq("user_id", session.user.id).maybeSingle(),
       ]);
 
-      if (profileRes.data) setProfile(profileRes.data);
-      if (roleRes.data) setRole(roleRes.data.role as AuthUser["role"]);
+      if (profileRes.data) setProfile(profileRes.data as any);
+      if (roleRes.data) setRole((roleRes.data as any).role as AuthUser["role"]);
       setLoading(false);
     };
 

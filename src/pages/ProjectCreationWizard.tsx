@@ -168,7 +168,7 @@ const ProjectCreationWizard = () => {
 
       // Create project in Supabase
       const { data: project, error: projectError } = await supabase
-        .from('projects')
+        .from('projects' as any)
         .insert({
           owner_id: user.id,
           title: formData.title,
@@ -177,7 +177,7 @@ const ProjectCreationWizard = () => {
           objective: formData.objective,
           status: 'active',
           current_stage: 'EXPLORATION',
-        })
+        } as any)
         .select()
         .single();
 
@@ -185,16 +185,17 @@ const ProjectCreationWizard = () => {
 
       // Create pipeline stages
       if (aiAnalysis?.stages && project) {
+        const projectData = project as any;
         const stageInserts = aiAnalysis.stages.map((stage) => ({
-          project_id: project.id,
+          project_id: projectData.id,
           stage: stage.name.toUpperCase().replace(/ /g, '_'),
           completion: stage.order_index === 0 ? 10 : 0,
           milestone_title: stage.description,
         }));
 
         const { error: stagesError } = await supabase
-          .from('research_stage_progress')
-          .insert(stageInserts);
+          .from('research_stage_progress' as any)
+          .insert(stageInserts as any);
 
         if (stagesError) {
           console.error('Stages error:', stagesError);
