@@ -17,12 +17,12 @@
     --popover: 216 60% 15%;
     --popover-foreground: 210 40% 98%;
 
-    /* Cyan Glow Accent */
-    --primary: 191 100% 62%;
-    --primary-foreground: 216 78% 13%;
+    /* Soft Blue Primary */
+    --primary: 215 70% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Electric Blue */
-    --secondary: 223 100% 64%;
+    /* Muted Indigo */
+    --secondary: 230 55% 58%;
     --secondary-foreground: 210 40% 98%;
 
     /* Muted Space Tones */
@@ -38,14 +38,14 @@
 
     --border: 216 40% 25%;
     --input: 216 40% 20%;
-    --ring: 191 100% 62%;
+    --ring: 215 70% 55%;
 
     --radius: 0.5rem;
     
     /* Custom SochX Tokens */
-    --glow-cyan: 191 100% 62%;
-    --glow-blue: 223 100% 64%;
-    --glow-purple: 260 60% 55%;
+    --glow-cyan: 215 70% 55%;
+    --glow-blue: 230 55% 58%;
+    --glow-purple: 260 45% 50%;
     --deep-navy: 216 78% 13%;
     --midnight: 220 70% 8%;
     --glass-bg: 216 60% 15%;
@@ -54,8 +54,8 @@
 
     --sidebar-background: 216 78% 13%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 191 100% 62%;
-    --sidebar-primary-foreground: 216 78% 13%;
+    --sidebar-primary: 215 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 216 60% 20%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 216 40% 25%;
@@ -111,9 +111,9 @@
     --card-foreground: 210 40% 98%;
     --popover: 216 60% 15%;
     --popover-foreground: 210 40% 98%;
-    --primary: 191 100% 62%;
-    --primary-foreground: 216 78% 13%;
-    --secondary: 223 100% 64%;
+    --primary: 215 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 55% 58%;
     --secondary-foreground: 210 40% 98%;
     --muted: 216 50% 20%;
     --muted-foreground: 215 20% 65%;
@@ -134,9 +134,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   }
-  
+
   html {
     scroll-behavior: smooth;
   }
@@ -313,4 +313,12 @@
     transform: translateX(300px) translateY(300px);
     opacity: 0;
   }
+}
+
+@keyframes wobble {
+  0%, 100% { transform: translateY(0); }
+  15% { transform: translateY(-3px) rotate(-1deg); }
+  30% { transform: translateY(2px) rotate(0.5deg); }
+  45% { transform: translateY(-2px) rotate(-0.5deg); }
+  60% { transform: translateY(1px); }
 }
